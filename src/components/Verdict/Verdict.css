@@ -1,0 +1,359 @@
+.verdict-bg {
+  min-height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, #0d1530 0%, #06090f 70%);
+  position: relative;
+  overflow: auto;
+  padding: 24px;
+}
+
+.verdict-particles {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(2px 2px at 20% 30%, rgba(201,168,76,0.4), transparent),
+    radial-gradient(2px 2px at 80% 20%, rgba(201,168,76,0.3), transparent),
+    radial-gradient(1px 1px at 50% 80%, rgba(255,220,100,0.4), transparent),
+    radial-gradient(1px 1px at 30% 60%, rgba(255,255,255,0.1), transparent),
+    radial-gradient(2px 2px at 70% 70%, rgba(201,168,76,0.2), transparent);
+  animation: float 6s ease-in-out infinite;
+}
+
+.verdict-rays {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: conic-gradient(from 0deg at 50% 50%, 
+    transparent 0deg, rgba(201,168,76,0.03) 10deg, transparent 20deg,
+    transparent 40deg, rgba(201,168,76,0.02) 50deg, transparent 60deg,
+    transparent 80deg, rgba(201,168,76,0.03) 90deg, transparent 100deg,
+    transparent 120deg, rgba(201,168,76,0.02) 130deg, transparent 140deg,
+    transparent 160deg, rgba(201,168,76,0.03) 170deg, transparent 180deg,
+    transparent 200deg, rgba(201,168,76,0.02) 210deg, transparent 220deg,
+    transparent 240deg, rgba(201,168,76,0.03) 250deg, transparent 260deg,
+    transparent 280deg, rgba(201,168,76,0.02) 290deg, transparent 300deg,
+    transparent 320deg, rgba(201,168,76,0.03) 330deg, transparent 340deg,
+    transparent 360deg
+  );
+  animation: ticker 60s linear infinite;
+}
+
+.verdict-container {
+  max-width: 700px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  z-index: 1;
+}
+
+/* Header */
+.verdict-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+  justify-content: center;
+  flex-direction: column;
+  border-bottom: 1px solid rgba(201,168,76,0.2);
+  padding-bottom: 20px;
+}
+
+.court-seal {
+  font-size: 2.5rem;
+  animation: float 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 20px rgba(201,168,76,0.6));
+}
+
+.verdict-court-name {
+  font-size: 0.7rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #a89060;
+  font-family: 'Playfair Display', serif;
+}
+
+.verdict-case-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem;
+  color: #e8c97a;
+  font-weight: 700;
+}
+
+.verdict-case-sub {
+  color: #a89060;
+  font-size: 0.85rem;
+}
+
+/* Stamp */
+.verdict-stamp-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.verdict-stamp {
+  border-radius: 12px;
+  padding: 3px;
+  animation: verdict-reveal 1s ease forwards;
+}
+
+.stamp-allowed {
+  border: 3px solid #27ae60;
+  box-shadow: 0 0 40px rgba(39,174,96,0.4), inset 0 0 20px rgba(39,174,96,0.1);
+}
+
+.stamp-dismissed {
+  border: 3px solid #e05c5c;
+  box-shadow: 0 0 40px rgba(224,92,92,0.4), inset 0 0 20px rgba(224,92,92,0.1);
+}
+
+.stamp-inner {
+  padding: 14px 50px;
+  text-align: center;
+}
+
+.stamp-decision {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.5rem;
+  font-weight: 900;
+  letter-spacing: 6px;
+}
+
+.stamp-allowed .stamp-decision { color: #27ae60; }
+.stamp-dismissed .stamp-decision { color: #e05c5c; }
+
+.stamp-sub {
+  font-size: 0.65rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #a89060;
+  margin-top: 4px;
+}
+
+/* Winner */
+.verdict-winner-wrap {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: rgba(201,168,76,0.05);
+  border: 1px solid rgba(201,168,76,0.2);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.winner-icon {
+  font-size: 2.5rem;
+  animation: float 2.5s ease-in-out infinite;
+}
+
+.winner-label {
+  font-size: 0.65rem;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: #a89060;
+}
+
+.winner-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 2rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #c9a84c, #e8c97a, #c9a84c);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+}
+
+.winner-side-badge {
+  font-size: 0.65rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 4px 16px;
+  border-radius: 20px;
+  font-weight: 700;
+}
+
+.winner-petitioner {
+  background: rgba(74,144,217,0.15);
+  color: #4a90d9;
+  border: 1px solid rgba(74,144,217,0.3);
+}
+
+.winner-respondent {
+  background: rgba(224,92,92,0.15);
+  color: #e05c5c;
+  border: 1px solid rgba(224,92,92,0.3);
+}
+
+/* Score cards */
+.verdict-scores {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.verdict-score-card {
+  flex: 1;
+  background: rgba(10,15,35,0.8);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 20px;
+  text-align: center;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.winner-card {
+  border-color: rgba(201,168,76,0.4) !important;
+  box-shadow: 0 0 30px rgba(201,168,76,0.1);
+}
+
+.petitioner-verdict-card { border-left: 3px solid #4a90d9; }
+.respondent-verdict-card { border-right: 3px solid #e05c5c; }
+
+.vsc-role {
+  font-size: 0.6rem;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: #5a4a30;
+  margin-bottom: 4px;
+}
+
+.vsc-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 1rem;
+  color: #f0e8d0;
+  margin-bottom: 8px;
+}
+
+.vsc-total {
+  font-family: 'Playfair Display', serif;
+  font-size: 3rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.vsc-label { font-size: 0.8rem; color: #5a4a30; }
+
+.vsc-breakdown {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+
+.vsc-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #a89060;
+}
+
+.vsc-winner-crown {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.5rem;
+  animation: float 2s ease-in-out infinite;
+}
+
+.verdict-vs {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #c9a84c;
+  text-shadow: 0 0 15px rgba(201,168,76,0.5);
+  flex-shrink: 0;
+}
+
+/* Reasoning */
+.verdict-reasoning {
+  background: rgba(201,168,76,0.05);
+  border: 1px solid rgba(201,168,76,0.15);
+  border-left: 3px solid #c9a84c;
+  border-radius: 10px;
+  padding: 20px 24px;
+}
+
+.reasoning-label {
+  font-size: 0.6rem;
+  letter-spacing: 3px;
+  color: #c9a84c;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.reasoning-text {
+  font-family: 'Playfair Display', serif;
+  font-size: 0.95rem;
+  color: #e8d8a0;
+  line-height: 1.7;
+  font-style: italic;
+}
+
+.reasoning-margin {
+  margin-top: 12px;
+  font-size: 0.8rem;
+  color: #a89060;
+}
+
+.reasoning-margin strong { color: #c9a84c; }
+
+/* Actions */
+.verdict-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+.verdict-reset-btn {
+  background: linear-gradient(135deg, #c9a84c, #e8c97a);
+  color: #06090f;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 32px;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.verdict-reset-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(201,168,76,0.4); }
+
+.verdict-share-btn {
+  background: rgba(201,168,76,0.1);
+  color: #c9a84c;
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: 10px;
+  padding: 14px 32px;
+  font-size: 1rem;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.verdict-share-btn:hover { background: rgba(201,168,76,0.2); }
+
+/* Footer */
+.verdict-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+  opacity: 0.4;
+  border-top: 1px solid rgba(201,168,76,0.1);
+  padding-top: 16px;
+}
+
+.footer-seal { font-size: 1.2rem; }
+.footer-text { font-size: 0.7rem; color: #a89060; letter-spacing: 0.5px; text-align: center; }
