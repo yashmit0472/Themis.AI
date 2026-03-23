@@ -5,6 +5,7 @@ import ScorePanel from './ScorePanel';
 import JudgePanel from './JudgePanel';
 import CounselPanel from './CounselPanel';
 import TimerBar from './TimerBar';
+import TensionBar from './TensionBar';
 import TranscriptFeed from './TranscriptFeed';
 import TopBar from './TopBar';
 import ObjectionOverlay from './ObjectionOverlay';
@@ -104,6 +105,11 @@ export default function Courtroom() {
 
       {/* Timer */}
       <TimerBar timer={timer} isActive={timerActive && !isJudgeTurn} turnState={turnState} />
+
+      {/* Tension Bar */}
+      <div style={{ padding: '0 24px' }}>
+        <TensionBar />
+      </div>
 
       {/* Objection overlay */}
       {objectionActive && <ObjectionOverlay side={objectionActive} name={objectionActive === 'petitioner' ? petitionerName : respondentName} />}

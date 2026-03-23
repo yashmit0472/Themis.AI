@@ -1,7 +1,7 @@
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from .judge import evaluate_argument
+from judge import evaluate_argument
 import json
 
 app = FastAPI()

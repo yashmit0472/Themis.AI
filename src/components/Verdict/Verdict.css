@@ -4,10 +4,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at center, #0d1530 0%, #06090f 70%);
+  background: radial-gradient(ellipse at center, var(--navy-mid) 0%, var(--deep-navy) 70%);
   position: relative;
   overflow: auto;
   padding: 24px;
+  color: var(--text-primary);
 }
 
 .verdict-particles {
@@ -140,11 +141,14 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  background: rgba(201,168,76,0.05);
-  border: 1px solid rgba(201,168,76,0.2);
-  border-radius: 16px;
-  padding: 24px;
+  gap: 8px;
+  background: rgba(201,168,76,0.08);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: 24px;
+  padding: 32px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6), inset 0 0 40px rgba(201,168,76,0.1);
 }
 
 .winner-icon {
@@ -195,19 +199,24 @@
 /* Score cards */
 .verdict-scores {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 16px;
   align-items: center;
 }
 
 .verdict-score-card {
   flex: 1;
-  background: rgba(10,15,35,0.8);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px;
-  padding: 20px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 24px;
   text-align: center;
   position: relative;
-  transition: all 0.3s;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.5);
 }
 
 .winner-card {
@@ -319,16 +328,20 @@
   background: linear-gradient(135deg, #c9a84c, #e8c97a);
   color: #06090f;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 14px 32px;
   font-size: 1rem;
   font-weight: 700;
   font-family: 'Inter', sans-serif;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 15px rgba(201,168,76,0.2);
 }
 
-.verdict-reset-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(201,168,76,0.4); }
+.verdict-reset-btn:hover { 
+  transform: translateY(-3px) scale(1.02); 
+  box-shadow: 0 8px 25px rgba(201,168,76,0.4), 0 0 15px rgba(232,201,122,0.4); 
+}
 
 .verdict-share-btn {
   background: rgba(201,168,76,0.1);

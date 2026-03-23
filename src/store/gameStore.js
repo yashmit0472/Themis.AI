@@ -37,8 +37,10 @@ export const useGameStore = create((set, get) => ({
   maxRounds: 3,
   objectionActive: null,
   verdict: null,
+  theme: 'dark',
   showVerdict: false,
 
+  toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
   setPhase: (phase) => set({ phase }),
   setSelectedCase: (c) => set({ selectedCase: c }),
   setPetitionerName: (name) => set({ petitionerName: name }),

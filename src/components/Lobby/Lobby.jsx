@@ -1,10 +1,39 @@
 import { useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
+import { motion, useMotionValue, useTransform } from 'framer-motion';
 import { CASES } from '../../data/cases';
 import './Lobby.css';
 
+function TiltCard({ children, className }) {
+  const x = useMotionValue(200);
+  const y = useMotionValue(200);
+  const rotateX = useTransform(y, [0, 400], [10, -10]);
+  const rotateY = useTransform(x, [0, 400], [-10, 10]);
+
+  function handleMouse(e) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    x.set(e.clientX - rect.left);
+    y.set(e.clientY - rect.top);
+  }
+
+  return (
+    <motion.div
+      className={className}
+      onMouseMove={handleMouse}
+      onMouseLeave={() => { x.set(200); y.set(200); }}
+      style={{ rotateX, rotateY, transformPerspective: 1000 }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 export default function Lobby() {
-  const { setPetitionerName, setRespondentName, petitionerName, respondentName, setSelectedCase, startGame } = useGameStore();
+  const { 
+    setPetitionerName, setRespondentName, setSelectedCase, startGame, 
+    petitionerName, respondentName, selectedCase,
+    theme, toggleTheme
+  } = useGameStore();
   const [step, setStep] = useState(0); // 0=welcome, 1=names, 2=case-select
   const [localCase, setLocalCase] = useState(null);
 
@@ -14,46 +43,60 @@ export default function Lobby() {
     startGame();
   };
 
+  const handleNext = () => {
+    setStep(2);
+  };
+
+  const handleStart = () => {
+    if (!localCase) return;
+    setSelectedCase(localCase);
+    startGame();
+  };
+
   return (
     <div className="lobby-bg">
       <div className="lobby-stars" />
+      <div className="lobby-orb" />
       <div className="lobby-overlay" />
 
       {/* Header */}
       <header className="lobby-header">
-        <div className="lobby-seal">⚖</div>
+        <div className="lobby-logo">
+          <span className="logo-icon">⚖️</span>
+          <span className="logo-text">THEMIS.AI</span>
+        </div>
         <div>
           <h1 className="lobby-title">Moot Court</h1>
           <p className="lobby-subtitle">Hon'ble Supreme Court of India — Simulator</p>
         </div>
-        <div className="lobby-seal">⚖</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button className="theme-toggle-btn" onClick={toggleTheme} title="Toggle Theme">
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+        </div>
       </header>
 
-      <main className="lobby-main">
+      <main className="lobby-main" style={{ paddingBottom: '60px' }}>
         {step === 0 && (
-          <div className="lobby-card fade-in">
+          <TiltCard className="lobby-card glow-border fade-in">
             <div className="lobby-emblem">🏛️</div>
             <h2 className="lobby-card-title">IN THE SUPREME COURT OF INDIA</h2>
             <p className="lobby-card-subtitle">Constitutional & Civil Appellate Jurisdiction</p>
             <div className="lobby-divider" />
+            
             <p className="lobby-desc">
-              Enter the digital courtroom. Present your strongest legal arguments before the Hon'ble Bench.
-              The AI Judge will evaluate your logic, clarity, and legal reasoning in real time.
+              Step into the highest court of the land. Our advanced AI Hon'ble Bench will evaluate your
+              arguments, logical structuring, and application of constitutional precedents in real-time.
             </p>
-            <div className="lobby-features">
-              <div className="feature-pill">⚖️ AI Judge</div>
-              <div className="feature-pill">📊 Live Scoring</div>
-              <div className="feature-pill">🔔 Interruptions</div>
-              <div className="feature-pill">📜 Final Verdict</div>
-            </div>
+            
             <button className="btn-primary" onClick={() => setStep(1)}>
-              Enter the Courtroom
+              ENTER APPEARANCE ➔
             </button>
-          </div>
+          </TiltCard>
         )}
 
         {step === 1 && (
-          <div className="lobby-card fade-in">
+          <TiltCard className="lobby-card glow-border fade-in">
             <h2 className="lobby-card-title">Identify Counsel</h2>
             <p className="lobby-card-subtitle">Enter the names for both sides</p>
             <div className="lobby-divider" />
@@ -82,18 +125,17 @@ export default function Lobby() {
                 <span className="field-tag respondent-tag">RED SIDE</span>
               </div>
             </div>
-            <div className="btn-row">
-              <button className="btn-secondary" onClick={() => setStep(0)}>Back</button>
-              <button className="btn-primary" onClick={() => setStep(2)}
-                disabled={!petitionerName.trim() || !respondentName.trim()}>
-                Select Case →
+            <div className="lobby-actions">
+              <button className="btn-secondary" onClick={() => setStep(0)}>BACK</button>
+              <button className="btn-primary" onClick={handleNext} disabled={!petitionerName.trim() || !respondentName.trim()}>
+                PROCEED TO CASE ➔
               </button>
             </div>
-          </div>
+          </TiltCard>
         )}
 
         {step === 2 && (
-          <div className="lobby-card wide-card fade-in">
+          <TiltCard className="lobby-card wide-card glow-border fade-in">
             <h2 className="lobby-card-title">Select Case</h2>
             <p className="lobby-card-subtitle">Choose a moot court problem to argue</p>
             <div className="lobby-divider" />
@@ -120,27 +162,22 @@ export default function Lobby() {
                 <p>{localCase.facts.substring(0, 200)}...</p>
               </div>
             )}
-            <div className="btn-row">
-              <button className="btn-secondary" onClick={() => setStep(1)}>Back</button>
-              <button className="btn-primary" onClick={handleBegin} disabled={!localCase}>
-                🔔 Call to Order
+            <div className="lobby-actions">
+              <button className="btn-secondary" onClick={() => setStep(1)}>BACK</button>
+              <button className="btn-primary" onClick={handleStart} disabled={!selectedCase && !localCase}>
+                APPROACH THE BENCH ➔
               </button>
             </div>
-          </div>
+          </TiltCard>
         )}
       </main>
 
-      {/* Ticket tape */}
-      <div className="ticker-wrap">
+      <div className="lobby-ticker">
         <div className="ticker-content">
-          {['Article 21 — Right to Life & Liberty', 'Article 14 — Equality before Law',
-            'Article 19 — Freedom of Speech', 'Basic Structure Doctrine', 'Judicial Review',
-            'Res Judicata', 'Stare Decisis', 'Audi Alteram Partem', 'Habeas Corpus', 'Article 32 — Constitutional Remedies',
-            'Article 21 — Right to Life & Liberty', 'Article 14 — Equality before Law',
-            'Article 19 — Freedom of Speech', 'Basic Structure Doctrine', 'Judicial Review',
-            'Res Judicata', 'Stare Decisis', 'Audi Alteram Partem', 'Habeas Corpus', 'Article 32 — Constitutional Remedies'
+          {[
+            "🏛️ SUPREME COURT CAUSE LIST • REHEARING ON ARTICLE 21 SCHEDULED • CONTEMPT MOTIONS FILED BY COUNSEL • AI HON'BLE BENCH PRESIDING TODAY • PENDING CASES: 4,021 • COURT IS IN SESSION"
           ].map((item, i) => (
-            <span key={i} className="ticker-item">{item} <span className="ticker-sep">•</span></span>
+            <span key={i} className="ticker-item">{item}</span>
           ))}
         </div>
       </div>

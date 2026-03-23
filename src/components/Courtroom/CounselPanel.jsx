@@ -3,7 +3,9 @@ import { useState, useRef } from 'react';
 export default function CounselPanel({ side, name, isActive, isDisabled, scores, onSubmit, onObjection, canObjection }) {
   const [text, setText] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const textareaRef = useRef(null);
+  const typingTimerRef = useRef(null);
 
   const isPetitioner = side === 'petitioner';
   const color = isPetitioner ? '#4a90d9' : '#e05c5c';
@@ -18,6 +20,13 @@ export default function CounselPanel({ side, name, isActive, isDisabled, scores,
     setSubmitted(true);
     await onSubmit(t);
     setTimeout(() => setSubmitted(false), 1000);
+  };
+
+  const handleType = (e) => {
+    setText(e.target.value);
+    setIsTyping(true);
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(() => setIsTyping(false), 200);
   };
 
   const handleKey = (e) => {
@@ -36,7 +45,7 @@ export default function CounselPanel({ side, name, isActive, isDisabled, scores,
 
   return (
     <div
-      className={`counsel-panel ${isActive ? 'counsel-active' : 'counsel-inactive'} ${isPetitioner ? 'counsel-petitioner' : 'counsel-respondent'}`}
+      className={`counsel-panel ${isActive ? 'counsel-active glow-border' : 'counsel-inactive'} ${isPetitioner ? 'counsel-petitioner' : 'counsel-respondent'}`}
       style={{ '--accent': color, '--glow': glowColor }}
     >
       {/* Active indicator bar */}
@@ -75,11 +84,11 @@ export default function CounselPanel({ side, name, isActive, isDisabled, scores,
             <div className="input-prompt">Your argument to the Bench:</div>
             <textarea
               ref={textareaRef}
-              className="counsel-textarea"
+              className={`counsel-textarea ${isTyping ? 'typing-glow' : ''}`}
               style={{ borderColor: `${color}40`, boxShadow: `0 0 0 1px ${color}10` }}
               placeholder={`${name}, submit your argument...`}
               value={text}
-              onChange={e => setText(e.target.value)}
+              onChange={handleType}
               onKeyDown={handleKey}
               disabled={isDisabled}
               rows={4}

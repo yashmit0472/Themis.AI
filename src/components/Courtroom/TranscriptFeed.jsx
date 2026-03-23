@@ -1,5 +1,6 @@
 import { useGameStore } from '../../store/gameStore';
 import { useEffect, useRef } from 'react';
+import { highlightLegalTerms } from '../../utils/formatters';
 
 export default function TranscriptFeed() {
   const { transcript } = useGameStore();
@@ -45,7 +46,7 @@ export default function TranscriptFeed() {
                  entry.type === 'respondent' ? 'RESPONDENT' : 'OBJECTION'}
                 <span className="entry-time">{entry.timestamp}</span>
               </div>
-              <div className="entry-text">{entry.text}</div>
+              <div className="entry-text">{highlightLegalTerms(entry.text)}</div>
               {entry.scores && (
                 <div className="entry-scores">
                   <span>Logic: {entry.scores.logic}</span>

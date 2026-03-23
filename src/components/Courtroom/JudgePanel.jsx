@@ -1,5 +1,6 @@
 import { useGameStore } from '../../store/gameStore';
 import { useEffect, useState } from 'react';
+import { highlightLegalTerms } from '../../utils/formatters';
 
 export default function JudgePanel() {
   const { judgeMessage, isJudgeSpeaking, isInterrupting, turnState } = useGameStore();
@@ -29,17 +30,19 @@ export default function JudgePanel() {
   const isSpeaking = isJudgeSpeaking && judgeMessage;
 
   return (
-    <div className={`judge-panel ${isSpeaking ? 'judge-active' : ''} ${isInterrupting ? 'judge-interrupt' : ''}`}>
+    <div className={`judge-panel ${isSpeaking ? 'judge-active glow-border' : ''} ${isInterrupting ? 'judge-interrupt' : ''}`}>
       {/* Judge avatar */}
       <div className={`judge-avatar-wrap ${isSpeaking ? 'avatar-glow' : ''}`}>
         <div className="judge-avatar">
           <span className="judge-avatar-icon">👨‍⚖️</span>
         </div>
         {isSpeaking && (
-          <div className="judge-speaking-rings">
-            <div className="ring ring1" />
-            <div className="ring ring2" />
-            <div className="ring ring3" />
+          <div className="audio-visualizer">
+            <div className="bar bar1" />
+            <div className="bar bar2" />
+            <div className="bar bar3" />
+            <div className="bar bar4" />
+            <div className="bar bar5" />
           </div>
         )}
       </div>
@@ -56,7 +59,7 @@ export default function JudgePanel() {
       <div className={`judge-speech ${isSpeaking ? 'speech-active' : 'speech-idle'} ${isInterrupting ? 'speech-interrupt' : ''}`}>
         {isSpeaking ? (
           <>
-            <div className="speech-text">{displayText}<span className="speech-cursor">|</span></div>
+            <div className="speech-text">{highlightLegalTerms(displayText)}<span className="speech-cursor">|</span></div>
             {isInterrupting && <div className="interrupt-badge">⚠️ INTERRUPT</div>}
           </>
         ) : (
