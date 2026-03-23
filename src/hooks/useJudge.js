@@ -11,6 +11,7 @@ export function useJudge() {
   const { selectedCase, addTranscript, setJudgeMessage, clearJudge, updateScores, setTurn } = useGameStore();
   const [isProcessing, setIsProcessing] = useState(false);
   const wsRef = useRef(null);
+  const synthRef = useRef(null);
 
   useEffect(() => {
     wsRef.current = new WebSocket("ws://localhost:8000/ws");
@@ -18,9 +19,44 @@ export function useJudge() {
     wsRef.current.onerror = (e) => console.error("WebSocket error:", e);
     wsRef.current.onclose = () => console.log("WebSocket closed");
 
+    // Initialize speech synthesis
+    if ('speechSynthesis' in window) {
+      synthRef.current = window.speechSynthesis;
+      console.log("Speech synthesis initialized");
+    } else {
+      console.error("Speech synthesis not supported in this browser");
+    }
+
     return () => {
       if (wsRef.current) wsRef.current.close();
+      if (synthRef.current) {
+        synthRef.current.cancel();
+      }
     };
+  }, []);
+
+  const speak = useCallback((text) => {
+    console.log("SPEAK CALLED with text:", text);
+    
+    if (!synthRef.current) {
+      console.error("Speech synthesis not available");
+      return;
+    }
+    
+    // Cancel any ongoing speech
+    synthRef.current.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.9;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+    
+    utterance.onstart = () => console.log("Speech started");
+    utterance.onend = () => console.log("Speech ended");
+    utterance.onerror = (e) => console.error("Speech error:", e);
+    
+    console.log("Calling speechSynthesis.speak()");
+    synthRef.current.speak(utterance);
   }, []);
 
   const processArgument = useCallback(async (text, side) => {
@@ -61,7 +97,6 @@ export function useJudge() {
         const handleMessage = (event) => {
           cleanup();
           try {
-            // Backend now sends JSON, not text
             const data = JSON.parse(event.data);
             resolve(data);
           } catch (e) {
@@ -88,11 +123,10 @@ export function useJudge() {
           reject(new Error("Timeout waiting for judge response"));
         }, 20000);
 
-        // Send proper format to backend
         wsRef.current.send(JSON.stringify({
           role: roleName,
           text: text,
-          history: history  // Array of objects, not string
+          history: history
         }));
       });
 
@@ -115,6 +149,7 @@ export function useJudge() {
 
       updateScores(side, scores);
       setJudgeMessage(feedback, interrupt);
+      speak(feedback);  // SPEAK THE JUDGE'S FEEDBACK
       addTranscript({ type: 'judge', text: feedback, scores });
 
     } catch (e) {
@@ -125,25 +160,22 @@ export function useJudge() {
       setJudgeMessage(fallback, false);
       addTranscript({ type: 'judge', text: fallback, scores: fallbackScores });
       updateScores(side, fallbackScores);
+      speak(fallback);  // SPEAK THE FALLBACK MESSAGE
     }
 
     // Smart timing based on feedback length
+    const feedback = judgeResponse?.feedback || "The Court acknowledges your submission.";
     const wordCount = feedback.split(/\s+/).length;
     const readingTime = Math.max(8000, Math.min(wordCount * 300, 20000));
-
-    console.log(`Judge feedback has ${wordCount} words, waiting ${readingTime}ms`);
     
+    console.log(`Judge feedback has ${wordCount} words, waiting ${readingTime}ms`);
+
     await new Promise(r => setTimeout(r, readingTime));
     clearJudge();
-    // If interrupted, same side goes again. Otherwise, switch turns.
-    const nextTurn = interrupt 
-      ? (side === 'petitioner' ? 'PETITIONER' : 'RESPONDENT')
-      : (side === 'petitioner' ? 'RESPONDENT' : 'PETITIONER');
-
-    console.log(`Interrupt: ${interrupt}, Next turn: ${nextTurn}`);
+    const nextTurn = side === 'petitioner' ? 'RESPONDENT' : 'PETITIONER';
     setTurn(nextTurn);
     setIsProcessing(false);
-  }, [isProcessing, addTranscript, setJudgeMessage, clearJudge, updateScores, setTurn]);
+  }, [isProcessing, addTranscript, setJudgeMessage, clearJudge, updateScores, setTurn, speak]);
 
   const getOpeningStatement = useCallback(() => {
     if (!selectedCase) return "Order! This Court is now in session.";
