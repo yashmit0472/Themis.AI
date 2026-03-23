@@ -1,22 +1,22 @@
-# ⚖️ Themis.AI — Moot Court Simulator
+# ⚖️ Themis.AI : Moot Court Simulator
 
-Welcome to **Themis.AI**, a real-time, AI-powered moot court simulator designed to help law students, professionals, and enthusiasts practice their legal argumentation skills. Engage in high-stakes simulated trials, present your case as a Petitioner or Respondent, and receive instant, dynamic feedback and scoring from an AI Judge.
+Welcome to **Themis.AI**, a real-time AI-powered moot court simulator designed to help law students, professionals, and enthusiasts practice their legal argumentation skills. Engage in high-stakes simulated trials, present your case as a Petitioner or Respondent, and receive instant, dynamic feedback and scoring from an AI Judge.
 
-## ✨ Features
+## Features
 - **Real-time AI Judge**: Powered by Google's Gemini 1.5 Flash API, the AI Judge evaluates your arguments instantly via WebSockets, providing logic, clarity, and confidence scores.
 - **Dynamic Courtroom UI**: An immersive dashboard complete with Counsel panels, live transcript feeds, pulsating timers, and a fully interactive AI judge speech bubble.
 - **Live Scoring & Analytics**: Track your performance across multiple turns. The system dynamically updates your core argumentative metrics and evaluates your legal logic in real-time.
 - **Custom Case Selection**: Choose from landmark cases in Indian jurisprudence (e.g., Dr. Priya Mehta v. AIIMS, R.K. Builders v. State of Maharashtra) to ground your arguments in real-world legal contexts.
 - **Responsive Dashboard Layout**: Built with modern CSS grid/flexbox to adapt smoothly to your screen without breaking immersiveness.
 
-## 🛠️ Tech Stack
+## Tech Stack
 - **Frontend**: React.js, Vite, Zustand (State Management), Vanilla CSS for custom animations and layout.
 - **Backend**: Python, FastAPI, WebSockets, Uvicorn.
-- **AI / LLM**: Google Generative AI (`google-generativeai`).
+- **LLM**: Google Generative AI (`google-generativeai`).
 
 ---
 
-## 🚀 Getting Started
+## How to use
 
 ### Prerequisites
 You will need the following installed on your machine:
