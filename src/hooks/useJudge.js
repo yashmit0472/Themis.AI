@@ -7,64 +7,6 @@ const JUDGE_OPENINGS = [
   "Order. This Court is assembled to adjudicate upon {CASE}. Petitioner's Counsel, you may begin.",
 ];
 
-const SCORE_PATTERNS = {
-  keywords: ['therefore', 'because', 'pursuant', 'accordingly', 'furthermore', 'however', 'notwithstanding', 'wherein', 'whereas', 'article', 'section', 'precedent', 'constitutional', 'fundamental', 'jurisdiction', 'doctrine', 'principle', 'liable', 'negligence'],
-  legalCitations: ['v.', 'scc', 'air', 'scr', 'indian penal', 'constitution', 'act,', 'section'],
-  weakWords: ['maybe', 'might', 'perhaps', 'possibly', 'i think', 'i guess', 'um', 'uh'],
-};
-
-function computeScore(text) {
-  const lower = text.toLowerCase();
-  const words = text.trim().split(/\s+/);
-  let logic = 5, clarity = 5, confidence = 5;
-
-  if (words.length > 40) logic += 1.5;
-  else if (words.length > 20) logic += 0.8;
-  else if (words.length < 8) logic -= 2;
-
-  const keywordCount = SCORE_PATTERNS.keywords.filter(k => lower.includes(k)).length;
-  logic += Math.min(keywordCount * 0.4, 2);
-  clarity += Math.min(keywordCount * 0.2, 1);
-
-  const citeCount = SCORE_PATTERNS.legalCitations.filter(k => lower.includes(k)).length;
-  logic += Math.min(citeCount * 0.6, 2.5);
-  confidence += Math.min(citeCount * 0.3, 1);
-
-  const weakCount = SCORE_PATTERNS.weakWords.filter(k => lower.includes(k)).length;
-  confidence -= weakCount * 0.8;
-  clarity -= weakCount * 0.4;
-
-  if (text.includes('.') && text.includes(',')) clarity += 0.5;
-
-  logic = Math.max(1, Math.min(10, logic + (Math.random() * 1.5 - 0.5)));
-  clarity = Math.max(1, Math.min(10, clarity + (Math.random() * 1.2 - 0.4)));
-  confidence = Math.max(1, Math.min(10, confidence + (Math.random() * 1.2 - 0.4)));
-
-  const feedback = generateFeedback(logic, clarity, confidence, keywordCount, weakCount, words.length);
-
-  return {
-    logic: parseFloat(logic.toFixed(1)),
-    clarity: parseFloat(clarity.toFixed(1)),
-    confidence: parseFloat(confidence.toFixed(1)),
-    feedback,
-  };
-}
-
-function generateFeedback(logic, clarity, confidence, keywords, weak, length) {
-  const feedbacks = [];
-  if (logic > 7.5) feedbacks.push("Strong legal reasoning");
-  else if (logic < 4) feedbacks.push("Weak logical foundation");
-  if (clarity > 7.5) feedbacks.push("Exceptionally clear articulation");
-  else if (clarity < 4) feedbacks.push("Lacks structural clarity");
-  if (confidence > 7.5) feedbacks.push("Commands authority");
-  else if (confidence < 4) feedbacks.push("Hesitant delivery");
-  if (keywords > 3) feedbacks.push("Good use of legal terminology");
-  if (weak > 0) feedbacks.push("Avoid hedging language");
-  if (length < 10) feedbacks.push("Response too brief for this Court");
-  if (length > 50) feedbacks.push("Detailed and substantive");
-  return feedbacks.length > 0 ? feedbacks.slice(0, 2).join('. ') + '.' : "Adequate submission.";
-}
-
 export function useJudge() {
   const { selectedCase, addTranscript, setJudgeMessage, clearJudge, updateScores, setTurn } = useGameStore();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -88,16 +30,18 @@ export function useJudge() {
     // Add argument to transcript
     addTranscript({ type: side, text });
 
-    // Compute store scores locally for now to keep the UI bars moving
-    const scores = computeScore(text);
-    updateScores(side, scores);
-
     setTurn('JUDGE');
 
     try {
       const state = useGameStore.getState();
-      const chatHistory = state.transcript.map(t => `${t.type}: ${t.text}`).join('\n');
-      const roleName = side === 'petitioner' ? state.petitionerName : state.respondentName;
+      
+      // Build history as array of objects for backend
+      const history = state.transcript.map(t => ({
+        role: t.type === 'judge' ? 'Judge' : (t.type === 'petitioner' ? 'Petitioner' : 'Respondent'),
+        argument: t.text
+      }));
+
+      const roleName = side === 'petitioner' ? 'Petitioner' : 'Respondent';
 
       const judgeResponse = await new Promise((resolve, reject) => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
@@ -116,9 +60,15 @@ export function useJudge() {
 
         const handleMessage = (event) => {
           cleanup();
-          resolve(event.data);
+          try {
+            // Backend now sends JSON, not text
+            const data = JSON.parse(event.data);
+            resolve(data);
+          } catch (e) {
+            reject(new Error("Invalid JSON response from server"));
+          }
         };
-        
+
         const handleError = (error) => {
           cleanup();
           reject(error);
@@ -136,68 +86,61 @@ export function useJudge() {
         timeoutId = setTimeout(() => {
           cleanup();
           reject(new Error("Timeout waiting for judge response"));
-        }, 20000); // 20s timeout
+        }, 20000);
 
+        // Send proper format to backend
         wsRef.current.send(JSON.stringify({
           role: roleName,
           text: text,
-          history: chatHistory
+          history: history  // Array of objects, not string
         }));
       });
-      
-      // Parse Gemini response which often includes markdown
-      const cleanResponse = judgeResponse.replace(/\*\*/g, '');
-      const lines = cleanResponse.split('\n');
-      let feedback = "";
-      let parsedScore = null;
-      let shouldInterrupt = false;
-      let inFeedback = false;
 
-      lines.forEach(line => {
-        const l = line.trim().toLowerCase();
-        if (l.startsWith('feedback:')) {
-          feedback = line.substring(line.toLowerCase().indexOf('feedback:') + 9).trim();
-          inFeedback = true;
-        }
-        else if (l.startsWith('score:')) {
-          const s = parseInt(line.replace(/[^0-9]/g, ''));
-          if (!isNaN(s)) parsedScore = s;
-          inFeedback = false;
-        }
-        else if (l.startsWith('interrupt')) {
-          shouldInterrupt = l.includes('yes');
-          inFeedback = false;
-        }
-        else if (inFeedback && line.trim() !== '') {
-          feedback += '\n' + line.trim();
-        }
-      });
+      // judgeResponse is now a parsed object from backend
+      const {
+        feedback = "The Court acknowledges your submission.",
+        score = 5,
+        logic_score = 5,
+        clarity_score = 5,
+        confidence_score = 5,
+        interrupt = false
+      } = judgeResponse;
 
-      if (!feedback) feedback = cleanResponse; // fallback
+      const scores = {
+        logic: logic_score,
+        clarity: clarity_score,
+        confidence: confidence_score,
+        feedback: feedback
+      };
 
-      // Update true scores based on Judge's evaluation
-      const updatedScores = parsedScore !== null 
-        ? { logic: parsedScore, clarity: parsedScore, confidence: parsedScore, feedback: `AI Scored: ${parsedScore}/10` }
-        : scores;
-        
-      if (parsedScore !== null) {
-        updateScores(side, updatedScores);
-      }
-
-      setJudgeMessage(feedback, shouldInterrupt);
-      addTranscript({ type: 'judge', text: feedback, scores: updatedScores });
+      updateScores(side, scores);
+      setJudgeMessage(feedback, interrupt);
+      addTranscript({ type: 'judge', text: feedback, scores });
 
     } catch (e) {
       console.error("Backend error:", e);
       const fallback = "The court's connection was dropped. Counsel, please proceed.";
+      const fallbackScores = { logic: 5, clarity: 5, confidence: 5, feedback: fallback };
+      
       setJudgeMessage(fallback, false);
-      addTranscript({ type: 'judge', text: fallback, scores });
+      addTranscript({ type: 'judge', text: fallback, scores: fallbackScores });
+      updateScores(side, fallbackScores);
     }
 
-    // After 4 seconds, switch turn
-    await new Promise(r => setTimeout(r, 4500));
+    // Smart timing based on feedback length
+    const wordCount = feedback.split(/\s+/).length;
+    const readingTime = Math.max(8000, Math.min(wordCount * 300, 20000));
+
+    console.log(`Judge feedback has ${wordCount} words, waiting ${readingTime}ms`);
+    
+    await new Promise(r => setTimeout(r, readingTime));
     clearJudge();
-    const nextTurn = side === 'petitioner' ? 'RESPONDENT' : 'PETITIONER';
+    // If interrupted, same side goes again. Otherwise, switch turns.
+    const nextTurn = interrupt 
+      ? (side === 'petitioner' ? 'PETITIONER' : 'RESPONDENT')
+      : (side === 'petitioner' ? 'RESPONDENT' : 'PETITIONER');
+
+    console.log(`Interrupt: ${interrupt}, Next turn: ${nextTurn}`);
     setTurn(nextTurn);
     setIsProcessing(false);
   }, [isProcessing, addTranscript, setJudgeMessage, clearJudge, updateScores, setTurn]);
