@@ -16,7 +16,7 @@ export default function Courtroom() {
     turnState, timer, timerActive, tickTimer, setTurn,
     petitionerName, respondentName, selectedCase,
     scores, roundNumber, maxRounds, nextRound, setObjection, clearObjection, objectionActive,
-    setJudgeMessage, clearJudge, addTranscript
+    setJudgeMessage, clearJudge, addTranscript, isInterrupting, judgeInterruptContext
   } = useGameStore();
 
   const { processArgument, isProcessing, getOpeningStatement } = useJudge();
@@ -50,7 +50,6 @@ export default function Courtroom() {
   // Timer expiry
   useEffect(() => {
     if (timer === 0 && timerActive) {
-      const side = turnState === 'PETITIONER' ? 'petitioner' : 'respondent';
       if (turnState === 'PETITIONER' || turnState === 'RESPONDENT') {
         setJudgeMessage("Time's up, Counsel. Your time has expired.", true);
         addTranscript({ type: 'judge', text: "Time's up, Counsel. Your time has expired." });
@@ -104,7 +103,13 @@ export default function Courtroom() {
       />
 
       {/* Timer */}
-      <TimerBar timer={timer} isActive={timerActive && !isJudgeTurn} turnState={turnState} />
+      <TimerBar
+        timer={timer}
+        isActive={timerActive && !isJudgeTurn}
+        turnState={turnState}
+        isInterrupting={isInterrupting}
+        interruptContext={judgeInterruptContext}
+      />
 
       {/* Tension Bar */}
       <div style={{ padding: '0 24px' }}>

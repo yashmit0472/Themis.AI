@@ -20,15 +20,23 @@ const initialScores = {
   respondent: { logic: 0, clarity: 0, confidence: 0, total: 0, history: [] },
 };
 
+const initialRetryCountBySpeaker = {
+  petitioner: 0,
+  respondent: 0,
+};
+
 export const useGameStore = create((set, get) => ({
   phase: GAME_PHASES.LOBBY,
   turnState: TURN_STATES.WAITING,
+  currentSpeaker: 'petitioner',
+  retryCountBySpeaker: initialRetryCountBySpeaker,
   selectedCase: null,
   petitionerName: 'Counsel A',
   respondentName: 'Counsel B',
   scores: initialScores,
   transcript: [],
   judgeMessage: null,
+  judgeInterruptContext: null,
   isJudgeSpeaking: false,
   isInterrupting: false,
   timer: 60,
@@ -49,9 +57,12 @@ export const useGameStore = create((set, get) => ({
   startGame: () => set({
     phase: GAME_PHASES.COURTROOM,
     turnState: TURN_STATES.PETITIONER,
+    currentSpeaker: 'petitioner',
+    retryCountBySpeaker: initialRetryCountBySpeaker,
     scores: initialScores,
     transcript: [],
     judgeMessage: null,
+    judgeInterruptContext: null,
     isJudgeSpeaking: false,
     timer: 60,
     timerActive: true,
@@ -61,19 +72,59 @@ export const useGameStore = create((set, get) => ({
     showVerdict: false,
   }),
 
-  setTurn: (turn) => set({ turnState: turn, timer: 60, timerActive: turn !== TURN_STATES.JUDGE }),
+  setTurn: (turn) => set({
+    turnState: turn,
+    currentSpeaker: turn === TURN_STATES.PETITIONER ? 'petitioner' : turn === TURN_STATES.RESPONDENT ? 'respondent' : get().currentSpeaker,
+    timer: 60,
+    timerActive: turn !== TURN_STATES.JUDGE,
+  }),
+
+  beginJudgePhase: () => set({ turnState: TURN_STATES.JUDGE, timerActive: false }),
+
+  resetRetriesForSpeaker: (speaker) => set((state) => ({
+    retryCountBySpeaker: {
+      ...state.retryCountBySpeaker,
+      [speaker]: 0,
+    },
+  })),
+
+  resumeSameSpeakerWithRetry: (speaker) => set((state) => ({
+    currentSpeaker: speaker,
+    turnState: speaker === 'petitioner' ? TURN_STATES.PETITIONER : TURN_STATES.RESPONDENT,
+    timer: 60,
+    timerActive: true,
+    retryCountBySpeaker: {
+      ...state.retryCountBySpeaker,
+      [speaker]: Math.min((state.retryCountBySpeaker[speaker] || 0) + 1, 2),
+    },
+  })),
+
+  advanceToOtherSpeaker: (speaker) => {
+    const nextSpeaker = speaker === 'petitioner' ? 'respondent' : 'petitioner';
+    set((state) => ({
+      currentSpeaker: nextSpeaker,
+      turnState: nextSpeaker === 'petitioner' ? TURN_STATES.PETITIONER : TURN_STATES.RESPONDENT,
+      timer: 60,
+      timerActive: true,
+      retryCountBySpeaker: {
+        ...state.retryCountBySpeaker,
+        [speaker]: 0,
+      },
+    }));
+  },
 
   addTranscript: (entry) => set((state) => ({
     transcript: [...state.transcript, { ...entry, id: Date.now(), timestamp: new Date().toLocaleTimeString() }]
   })),
 
-  setJudgeMessage: (message, interrupting = false) => set({
+  setJudgeMessage: (message, interrupting = false, interruptContext = null) => set({
     judgeMessage: message,
     isJudgeSpeaking: !!message,
     isInterrupting: interrupting,
+    judgeInterruptContext: interruptContext,
   }),
 
-  clearJudge: () => set({ judgeMessage: null, isJudgeSpeaking: false, isInterrupting: false }),
+  clearJudge: () => set({ judgeMessage: null, isJudgeSpeaking: false, isInterrupting: false, judgeInterruptContext: null }),
 
   updateScores: (side, newScores) => set((state) => {
     const prev = state.scores[side];
@@ -142,10 +193,13 @@ export const useGameStore = create((set, get) => ({
   resetGame: () => set({
     phase: GAME_PHASES.LOBBY,
     turnState: TURN_STATES.WAITING,
+    currentSpeaker: 'petitioner',
+    retryCountBySpeaker: initialRetryCountBySpeaker,
     selectedCase: null,
     scores: initialScores,
     transcript: [],
     judgeMessage: null,
+    judgeInterruptContext: null,
     isJudgeSpeaking: false,
     isInterrupting: false,
     timer: 60,

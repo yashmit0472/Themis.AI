@@ -8,10 +8,20 @@ const JUDGE_OPENINGS = [
 ];
 
 export function useJudge() {
-  const { selectedCase, addTranscript, setJudgeMessage, clearJudge, updateScores, setTurn } = useGameStore();
+  const {
+    selectedCase,
+    addTranscript,
+    setJudgeMessage,
+    clearJudge,
+    updateScores,
+    beginJudgePhase,
+    resumeSameSpeakerWithRetry,
+    advanceToOtherSpeaker,
+  } = useGameStore();
   const [isProcessing, setIsProcessing] = useState(false);
   const wsRef = useRef(null);
   const synthRef = useRef(null);
+  const voicesRef = useRef([]);
 
   useEffect(() => {
     wsRef.current = new WebSocket("ws://localhost:8000/ws");
@@ -22,6 +32,10 @@ export function useJudge() {
     // Initialize speech synthesis
     if ('speechSynthesis' in window) {
       synthRef.current = window.speechSynthesis;
+      voicesRef.current = synthRef.current.getVoices();
+      synthRef.current.onvoiceschanged = () => {
+        voicesRef.current = synthRef.current.getVoices();
+      };
       console.log("Speech synthesis initialized");
     } else {
       console.error("Speech synthesis not supported in this browser");
@@ -35,29 +49,53 @@ export function useJudge() {
     };
   }, []);
 
-  const speak = useCallback((text) => {
-    console.log("SPEAK CALLED with text:", text);
-    
+  const pickJudgeVoice = useCallback(() => {
+    const voices = voicesRef.current || [];
+    if (!voices.length) return null;
+    return voices.find(v => v.lang?.toLowerCase().startsWith('en-in'))
+      || voices.find(v => v.lang?.toLowerCase().startsWith('en'))
+      || voices[0];
+  }, []);
+
+  const speak = useCallback((text, options = {}) => {
+    const { interrupt = false } = options;
     if (!synthRef.current) {
       console.error("Speech synthesis not available");
-      return;
+      return Promise.resolve();
     }
-    
-    // Cancel any ongoing speech
+
+    if (typeof synthRef.current.resume === 'function') {
+      synthRef.current.resume();
+    }
     synthRef.current.cancel();
-    
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-    
-    utterance.onstart = () => console.log("Speech started");
-    utterance.onend = () => console.log("Speech ended");
-    utterance.onerror = (e) => console.error("Speech error:", e);
-    
-    console.log("Calling speechSynthesis.speak()");
-    synthRef.current.speak(utterance);
-  }, []);
+
+    return new Promise((resolve) => {
+      const clippedText = interrupt
+        ? text.split(/[.?!]/).filter(Boolean)[0] || text
+        : text;
+      const utterance = new SpeechSynthesisUtterance(clippedText);
+      const selectedVoice = pickJudgeVoice();
+      if (selectedVoice) utterance.voice = selectedVoice;
+      utterance.lang = selectedVoice?.lang || 'en-IN';
+      utterance.rate = interrupt ? 1.1 : 0.95;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+
+      let resolved = false;
+      const done = () => {
+        if (!resolved) {
+          resolved = true;
+          resolve();
+        }
+      };
+
+      utterance.onend = done;
+      utterance.onerror = () => done();
+
+      synthRef.current.speak(utterance);
+      setTimeout(done, interrupt ? 1800 : 7000);
+    });
+  }, [pickJudgeVoice]);
 
   const processArgument = useCallback(async (text, side) => {
     if (!text.trim() || isProcessing) return;
@@ -66,8 +104,9 @@ export function useJudge() {
     // Add argument to transcript
     addTranscript({ type: side, text });
 
-    setTurn('JUDGE');
+    beginJudgePhase();
 
+    let judgeResponse = null;
     try {
       const state = useGameStore.getState();
       
@@ -79,7 +118,7 @@ export function useJudge() {
 
       const roleName = side === 'petitioner' ? 'Petitioner' : 'Respondent';
 
-      const judgeResponse = await new Promise((resolve, reject) => {
+      judgeResponse = await new Promise((resolve, reject) => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
           reject(new Error("WebSocket not connected"));
           return;
@@ -99,7 +138,7 @@ export function useJudge() {
           try {
             const data = JSON.parse(event.data);
             resolve(data);
-          } catch (e) {
+          } catch (_error) {
             reject(new Error("Invalid JSON response from server"));
           }
         };
@@ -133,7 +172,6 @@ export function useJudge() {
       // judgeResponse is now a parsed object from backend
       const {
         feedback = "The Court acknowledges your submission.",
-        score = 5,
         logic_score = 5,
         clarity_score = 5,
         confidence_score = 5,
@@ -147,9 +185,15 @@ export function useJudge() {
         feedback: feedback
       };
 
+      const { retryCountBySpeaker } = useGameStore.getState();
+      const nextAttempt = Math.min((retryCountBySpeaker?.[side] || 0) + 1, 2);
+      const interruptContext = interrupt
+        ? { speaker: side, attempt: nextAttempt, max: 2 }
+        : null;
+
       updateScores(side, scores);
-      setJudgeMessage(feedback, interrupt);
-      speak(feedback);  // SPEAK THE JUDGE'S FEEDBACK
+      setJudgeMessage(feedback, interrupt, interruptContext);
+      await speak(feedback, { interrupt });
       addTranscript({ type: 'judge', text: feedback, scores });
 
     } catch (e) {
@@ -160,22 +204,33 @@ export function useJudge() {
       setJudgeMessage(fallback, false);
       addTranscript({ type: 'judge', text: fallback, scores: fallbackScores });
       updateScores(side, fallbackScores);
-      speak(fallback);  // SPEAK THE FALLBACK MESSAGE
+      await speak(fallback, { interrupt: false });
+      judgeResponse = { feedback: fallback, interrupt: false };
     }
 
-    // Smart timing based on feedback length
-    const feedback = judgeResponse?.feedback || "The Court acknowledges your submission.";
-    const wordCount = feedback.split(/\s+/).length;
-    const readingTime = Math.max(8000, Math.min(wordCount * 300, 20000));
-    
-    console.log(`Judge feedback has ${wordCount} words, waiting ${readingTime}ms`);
-
-    await new Promise(r => setTimeout(r, readingTime));
+    await new Promise(r => setTimeout(r, judgeResponse?.interrupt ? 120 : 220));
     clearJudge();
-    const nextTurn = side === 'petitioner' ? 'RESPONDENT' : 'PETITIONER';
-    setTurn(nextTurn);
+    const { retryCountBySpeaker } = useGameStore.getState();
+    const isInterrupt = !!judgeResponse?.interrupt;
+    const currentRetries = retryCountBySpeaker?.[side] || 0;
+
+    if (isInterrupt && currentRetries < 2) {
+      resumeSameSpeakerWithRetry(side);
+    } else {
+      advanceToOtherSpeaker(side);
+    }
     setIsProcessing(false);
-  }, [isProcessing, addTranscript, setJudgeMessage, clearJudge, updateScores, setTurn, speak]);
+  }, [
+    isProcessing,
+    addTranscript,
+    setJudgeMessage,
+    clearJudge,
+    updateScores,
+    beginJudgePhase,
+    resumeSameSpeakerWithRetry,
+    advanceToOtherSpeaker,
+    speak,
+  ]);
 
   const getOpeningStatement = useCallback(() => {
     if (!selectedCase) return "Order! This Court is now in session.";

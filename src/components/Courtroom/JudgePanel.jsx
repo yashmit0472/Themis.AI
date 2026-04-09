@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { highlightLegalTerms } from '../../utils/formatters';
 
 export default function JudgePanel() {
-  const { judgeMessage, isJudgeSpeaking, isInterrupting, turnState } = useGameStore();
+  const { judgeMessage, isJudgeSpeaking, isInterrupting, judgeInterruptContext, turnState } = useGameStore();
   const [displayText, setDisplayText] = useState('');
   const [charIdx, setCharIdx] = useState(0);
 
@@ -60,7 +60,13 @@ export default function JudgePanel() {
         {isSpeaking ? (
           <>
             <div className="speech-text">{highlightLegalTerms(displayText)}<span className="speech-cursor">|</span></div>
-            {isInterrupting && <div className="interrupt-badge">⚠️ INTERRUPT</div>}
+            {isInterrupting && (
+              <div className="interrupt-badge">
+                {judgeInterruptContext
+                  ? `⚠️ Clarification requested (${judgeInterruptContext.attempt}/${judgeInterruptContext.max})`
+                  : '⚠️ INTERRUPT'}
+              </div>
+            )}
           </>
         ) : (
           <div className="speech-idle-text">

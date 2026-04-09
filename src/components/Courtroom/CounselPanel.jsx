@@ -1,11 +1,14 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 export default function CounselPanel({ side, name, isActive, isDisabled, scores, onSubmit, onObjection, canObjection }) {
   const [text, setText] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [sttError, setSttError] = useState('');
   const textareaRef = useRef(null);
   const typingTimerRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   const isPetitioner = side === 'petitioner';
   const color = isPetitioner ? '#4a90d9' : '#e05c5c';
@@ -37,7 +40,65 @@ export default function CounselPanel({ side, name, isActive, isDisabled, scores,
   };
 
   const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
-  const charCount = text.length;
+
+  const browserSpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const sttSupported = !!browserSpeechRecognition;
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    setIsListening(false);
+  };
+
+  const startListening = () => {
+    if (!sttSupported || isDisabled) return;
+    setSttError('');
+
+    const recognition = new browserSpeechRecognition();
+    recognition.lang = 'en-IN';
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    recognition.continuous = true;
+
+    const baseText = text;
+    recognition.onresult = (event) => {
+      let interimText = '';
+      let finalText = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const chunk = event.results[i][0]?.transcript || '';
+        if (event.results[i].isFinal) {
+          finalText += `${chunk} `;
+        } else {
+          interimText += chunk;
+        }
+      }
+
+      const combined = `${baseText} ${finalText} ${interimText}`.replace(/\s+/g, ' ').trim();
+      setText(combined);
+    };
+
+    recognition.onerror = (event) => {
+      setSttError(`Mic error: ${event.error}`);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
+  };
+
+  useEffect(() => {
+    if (!isActive || isDisabled) {
+      stopListening();
+    }
+    return () => stopListening();
+  }, [isActive, isDisabled]);
 
   const samplePrompts = isPetitioner
     ? ["Article 21 guarantees...", "The precedent in Puttaswamy clearly...", "This Court has held that..."]
@@ -97,6 +158,26 @@ export default function CounselPanel({ side, name, isActive, isDisabled, scores,
               <div className="word-count">{wordCount} words</div>
               <div className="input-hint">Enter to submit · Shift+Enter for new line</div>
             </div>
+            <div className="input-footer" style={{ marginTop: 8 }}>
+              <button
+                className={`voice-btn ${isListening ? 'voice-btn-listening' : ''}`}
+                style={{ '--voice-color': color }}
+                onClick={isListening ? stopListening : startListening}
+                disabled={!sttSupported || isDisabled}
+                type="button"
+                title={sttSupported ? 'Use microphone speech-to-text' : 'Speech-to-text not supported by this browser'}
+              >
+                {isListening ? '🎙 Stop Speaking' : '🎤 Speak Argument'}
+              </button>
+              <div className="input-hint">
+                {!sttSupported
+                  ? 'Speech-to-text unavailable here. Use Chrome/Edge and allow mic.'
+                  : isListening
+                  ? 'Listening... speak clearly'
+                  : 'Click Speak Argument to use microphone input'}
+              </div>
+            </div>
+            {sttError && <div className="word-count" style={{ color: '#e05c5c' }}>{sttError}</div>}
 
             {/* Quick prompts */}
             <div className="quick-prompts">
