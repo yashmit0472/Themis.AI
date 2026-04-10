@@ -8,9 +8,11 @@ Welcome to **Themis.AI**, a real-time AI-powered moot court simulator designed t
 - **Live Scoring & Analytics**: Track your performance across multiple turns. The system dynamically updates your core argumentative metrics and evaluates your legal logic in real-time.
 - **Custom Case Selection**: Choose from landmark cases in Indian jurisprudence (e.g., Dr. Priya Mehta v. AIIMS, R.K. Builders v. State of Maharashtra) to ground your arguments in real-world legal contexts.
 - **Responsive Dashboard Layout**: Built with modern CSS grid/flexbox to adapt smoothly to your screen without breaking immersiveness.
+- **Voice input & spoken judge**: Counsel can dictate arguments with the browser microphone (speech-to-text); the AI Judge's replies are read aloud (text-to-speech) via the Web Speech API.
 
 ## Tech Stack
 - **Frontend**: React.js, Vite, Zustand (State Management), Vanilla CSS for custom animations and layout.
+- **Speech (browser)**: [Web Speech API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API) — **STT** via `SpeechRecognition` / `webkitSpeechRecognition` (counsel microphone input into the argument field); **TTS** via `speechSynthesis` and `SpeechSynthesisUtterance` (spoken AI Judge feedback). No extra server-side voice stack; recognition quality and availability depend on the browser (Chrome and Edge offer the broadest support).
 - **Backend**: Python, FastAPI, WebSockets, Uvicorn.
 - **LLM**: Google Generative AI (`google-generativeai`).
 
@@ -23,6 +25,7 @@ You will need the following installed on your machine:
 - Node.js (v16+)
 - Python (3.8+)
 - A Google Gemini API Key.
+- For **speech-to-text** (mic input), use a browser that implements the Web Speech recognition API (e.g. Chrome or Edge) and allow microphone access when prompted.
 
 ### 1. Clone the Repository
 ```bash
