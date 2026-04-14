@@ -2,6 +2,7 @@ from google import genai
 import os
 from dotenv import load_dotenv
 import re
+from typing import Optional
 
 load_dotenv()
 
@@ -24,6 +25,110 @@ SCORING_RUBRIC = {
     "confidence": "Courtroom tone, composure, and assertiveness without overclaiming.",
 }
 
+TOKEN_RE = re.compile(r"[a-z0-9]+")
+STOPWORDS = {
+    "the", "and", "for", "with", "this", "that", "from", "have", "has", "had",
+    "were", "was", "are", "is", "be", "to", "of", "in", "on", "at", "by",
+    "an", "a", "as", "it", "its", "or", "if", "can", "may", "will", "would",
+    "should", "could", "do", "does", "did", "not", "but", "we", "they", "you",
+    "your", "our", "their", "his", "her", "there", "here", "case", "court",
+}
+
+
+def normalize_text(text: Optional[str]) -> str:
+    return (text or "").strip().lower()
+
+
+def tokenize(text: Optional[str]):
+    return [token for token in TOKEN_RE.findall(normalize_text(text)) if token not in STOPWORDS]
+
+
+def build_case_chunks(selected_case):
+    if not selected_case:
+        return []
+
+    chunks = []
+    case_title = selected_case.get("title", "Selected Case")
+
+    facts = selected_case.get("facts")
+    if facts:
+        chunks.append({
+            "case_title": case_title,
+            "chunk_type": "facts",
+            "label": "Facts",
+            "text": str(facts).strip(),
+        })
+
+    for index, issue in enumerate(selected_case.get("issues", []) or [], start=1):
+        issue_text = str(issue).strip()
+        if issue_text:
+            chunks.append({
+                "case_title": case_title,
+                "chunk_type": "issues",
+                "label": f"Issue {index}",
+                "text": issue_text,
+            })
+
+    for index, precedent in enumerate(selected_case.get("precedents", []) or [], start=1):
+        precedent_text = str(precedent).strip()
+        if precedent_text:
+            chunks.append({
+                "case_title": case_title,
+                "chunk_type": "precedents",
+                "label": f"Precedent {index}",
+                "text": precedent_text,
+            })
+
+    return chunks
+
+
+def build_retrieval_query(argument, history):
+    query_parts = [argument or ""]
+    for turn in (history or [])[-6:]:
+        turn_text = turn.get("argument") or turn.get("text") or ""
+        if turn_text:
+            query_parts.append(turn_text)
+    return " \n".join(part for part in query_parts if part).strip()
+
+
+def match_chunk_terms(query_tokens, chunk_text):
+    chunk_tokens = tokenize(chunk_text)
+    if not query_tokens or not chunk_tokens:
+        return []
+
+    query_set = set(query_tokens)
+    chunk_set = set(chunk_tokens)
+    return sorted(query_set & chunk_set)
+
+
+def retrieve_case_evidence(selected_case, argument, history, limit=4):
+    case_chunks = build_case_chunks(selected_case)
+    if not case_chunks:
+        return []
+
+    query_text = build_retrieval_query(argument, history)
+    query_tokens = tokenize(query_text)
+    scored_chunks = []
+
+    for chunk in case_chunks:
+        matched_terms = match_chunk_terms(query_tokens, chunk["text"])
+        scored_chunks.append({
+            "case_title": chunk["case_title"],
+            "chunk_type": chunk["chunk_type"],
+            "label": chunk["label"],
+            "text": chunk["text"],
+            "match_count": len(matched_terms),
+            "matched_terms": matched_terms,
+        })
+
+    scored_chunks.sort(key=lambda item: (-item["match_count"], item["chunk_type"], item["label"]))
+
+    top_chunks = scored_chunks[:limit]
+    if top_chunks and all(item["match_count"] == 0 for item in top_chunks):
+        return scored_chunks[:min(2, len(scored_chunks))]
+
+    return top_chunks
+
 
 def build_judge_response(*, feedback, logic_score, clarity_score, confidence_score, interrupt, evidence=None, reasoning_breakdown=None):
     overall_score = round((logic_score + clarity_score + confidence_score) / 3, 1)
@@ -38,7 +143,7 @@ def build_judge_response(*, feedback, logic_score, clarity_score, confidence_sco
         "reasoning_breakdown": reasoning_breakdown or SCORING_RUBRIC,
     }
 
-def evaluate_argument(role, argument, history):
+def evaluate_argument(role, argument, history, selected_case=None):
     """
     Evaluates a legal argument in a moot court setting.
     """
@@ -50,14 +155,30 @@ def evaluate_argument(role, argument, history):
             f"{turn.get('role', 'Unknown')}: {turn.get('argument', '')}"
             for turn in history[-6:]
         ])
+
+    retrieved_evidence = retrieve_case_evidence(selected_case, argument, history)
+    evidence_str = "\n".join([
+        f"- [{item['match_count']} matches] {item['label']} ({item['chunk_type']}): {item['text']}"
+        for item in retrieved_evidence
+    ]) if retrieved_evidence else "No case evidence matched strongly enough."
+
+    case_context = "No case selected."
+    if selected_case:
+        case_context = f"CASE: {selected_case.get('title', 'Selected Case')}\nSUBTITLE: {selected_case.get('subtitle', '')}\nFACTS: {selected_case.get('facts', '')}\nISSUES: {', '.join(selected_case.get('issues', []) or [])}\nPRECEDENTS: {', '.join(selected_case.get('precedents', []) or [])}"
     
     prompt = f"""You are a Supreme Court judge presiding over a moot court session. Your role is to evaluate arguments critically, ask probing questions, and maintain courtroom decorum.
 
 CURRENT SPEAKER: {role}
 CURRENT ARGUMENT: {argument}
 
+SELECTED CASE:
+{case_context}
+
 PREVIOUS ARGUMENTS:
 {context_str if context_str else "This is the opening statement."}
+
+RETRIEVED CASE EVIDENCE:
+{evidence_str}
 
 YOUR TASK:
 1. Evaluate this argument on:
@@ -107,6 +228,7 @@ INTERRUPT: [YES or NO]
             clarity_score=clarity_score,
             confidence_score=confidence_score,
             interrupt=interrupt,
+            evidence=retrieved_evidence,
         )
         
     except Exception as e:
@@ -117,4 +239,5 @@ INTERRUPT: [YES or NO]
             clarity_score=0,
             confidence_score=0,
             interrupt=True,
+            evidence=retrieved_evidence,
         )

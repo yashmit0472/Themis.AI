@@ -140,6 +140,8 @@ export const useGameStore = create((set, get) => ({
           clarity: parseFloat(clarity.toFixed(1)),
           confidence: parseFloat(confidence.toFixed(1)),
           total,
+          evidence: newScores.evidence || [],
+          reasoning_breakdown: newScores.reasoning_breakdown || null,
           history: [...prev.history, { logic, clarity, confidence, total, round: state.roundNumber }]
         }
       }

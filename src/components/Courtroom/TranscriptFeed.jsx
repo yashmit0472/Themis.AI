@@ -55,6 +55,15 @@ export default function TranscriptFeed() {
                   {entry.scores.feedback && <span className="entry-feedback">{entry.scores.feedback}</span>}
                 </div>
               )}
+              {entry.scores?.evidence?.length > 0 && (
+                <div className="entry-scores">
+                  {entry.scores.evidence.map((item, index) => (
+                    <span key={`${entry.id}-evidence-${index}`} className="entry-feedback">
+                      Evidence {index + 1}: {item.label} [{item.match_count} matches]
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ))}

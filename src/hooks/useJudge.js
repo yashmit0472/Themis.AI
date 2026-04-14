@@ -109,6 +109,7 @@ export function useJudge() {
     let judgeResponse = null;
     try {
       const state = useGameStore.getState();
+      const selectedCaseData = state.selectedCase;
       
       // Build history as array of objects for backend
       const history = state.transcript.map(t => ({
@@ -165,7 +166,8 @@ export function useJudge() {
         wsRef.current.send(JSON.stringify({
           role: roleName,
           text: text,
-          history: history
+          history: history,
+          selectedCase: selectedCaseData,
         }));
       });
 
