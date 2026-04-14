@@ -1,3 +1,0 @@
-# Ignore checkpoint weights and logs; keep this directory in the repo
-*
-!.gitignore
