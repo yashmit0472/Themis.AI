@@ -7,6 +7,37 @@ load_dotenv()
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
+JUDGE_RESPONSE_FIELDS = (
+    "feedback",
+    "score",
+    "logic_score",
+    "clarity_score",
+    "confidence_score",
+    "interrupt",
+    "evidence",
+    "reasoning_breakdown",
+)
+
+SCORING_RUBRIC = {
+    "logic": "Relevance to the issue, use of precedent, and factual consistency with the selected case.",
+    "clarity": "Structure, directness, and whether the argument answers the legal question clearly.",
+    "confidence": "Courtroom tone, composure, and assertiveness without overclaiming.",
+}
+
+
+def build_judge_response(*, feedback, logic_score, clarity_score, confidence_score, interrupt, evidence=None, reasoning_breakdown=None):
+    overall_score = round((logic_score + clarity_score + confidence_score) / 3, 1)
+    return {
+        "feedback": feedback,
+        "score": overall_score,
+        "logic_score": logic_score,
+        "clarity_score": clarity_score,
+        "confidence_score": confidence_score,
+        "interrupt": interrupt,
+        "evidence": evidence or [],
+        "reasoning_breakdown": reasoning_breakdown or SCORING_RUBRIC,
+    }
+
 def evaluate_argument(role, argument, history):
     """
     Evaluates a legal argument in a moot court setting.
@@ -69,25 +100,21 @@ INTERRUPT: [YES or NO]
         clarity_score = int(clarity_match.group(1)) if clarity_match else 5
         confidence_score = int(confidence_match.group(1)) if confidence_match else 5
         interrupt = interrupt_match.group(1).upper() == "YES" if interrupt_match else False
-        
-        overall_score = round((logic_score + clarity_score + confidence_score) / 3, 1)
-        
-        return {
-            "feedback": feedback,
-            "score": overall_score,
-            "logic_score": logic_score,
-            "clarity_score": clarity_score,
-            "confidence_score": confidence_score,
-            "interrupt": interrupt
-        }
+
+        return build_judge_response(
+            feedback=feedback,
+            logic_score=logic_score,
+            clarity_score=clarity_score,
+            confidence_score=confidence_score,
+            interrupt=interrupt,
+        )
         
     except Exception as e:
         print(f"Error in evaluate_argument: {e}")
-        return {
-            "feedback": "The court experienced a technical difficulty. Please repeat your argument.",
-            "score": 0,
-            "logic_score": 0,
-            "clarity_score": 0,
-            "confidence_score": 0,
-            "interrupt": True
-        }
+        return build_judge_response(
+            feedback="The court experienced a technical difficulty. Please repeat your argument.",
+            logic_score=0,
+            clarity_score=0,
+            confidence_score=0,
+            interrupt=True,
+        )

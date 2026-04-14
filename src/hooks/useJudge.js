@@ -175,14 +175,18 @@ export function useJudge() {
         logic_score = 5,
         clarity_score = 5,
         confidence_score = 5,
-        interrupt = false
+        interrupt = false,
+        evidence = [],
+        reasoning_breakdown = null,
       } = judgeResponse;
 
       const scores = {
         logic: logic_score,
         clarity: clarity_score,
         confidence: confidence_score,
-        feedback: feedback
+        feedback: feedback,
+        evidence,
+        reasoning_breakdown,
       };
 
       const { retryCountBySpeaker } = useGameStore.getState();
@@ -199,7 +203,14 @@ export function useJudge() {
     } catch (e) {
       console.error("Backend error:", e);
       const fallback = "The court's connection was dropped. Counsel, please proceed.";
-      const fallbackScores = { logic: 5, clarity: 5, confidence: 5, feedback: fallback };
+      const fallbackScores = {
+        logic: 5,
+        clarity: 5,
+        confidence: 5,
+        feedback: fallback,
+        evidence: [],
+        reasoning_breakdown: null,
+      };
       
       setJudgeMessage(fallback, false);
       addTranscript({ type: 'judge', text: fallback, scores: fallbackScores });
