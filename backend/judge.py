@@ -20,9 +20,18 @@ JUDGE_RESPONSE_FIELDS = (
 )
 
 SCORING_RUBRIC = {
-    "logic": "Relevance to the issue, use of precedent, and factual consistency with the selected case.",
-    "clarity": "Structure, directness, and whether the argument answers the legal question clearly.",
-    "confidence": "Courtroom tone, composure, and assertiveness without overclaiming.",
+    "logic": {
+        "definition": "Measure legal relevance, precedent use, and factual consistency with the selected case.",
+        "criteria": ["case_relevance", "precedent_use", "factual_consistency"],
+    },
+    "clarity": {
+        "definition": "Measure structure, directness, and whether the submission answers the legal issue clearly.",
+        "criteria": ["structure", "directness"],
+    },
+    "confidence": {
+        "definition": "Measure courtroom tone, composure, and assertiveness without overclaiming.",
+        "criteria": ["tone", "composure", "assertiveness"],
+    },
 }
 
 TOKEN_RE = re.compile(r"[a-z0-9]+")
@@ -33,6 +42,14 @@ STOPWORDS = {
     "should", "could", "do", "does", "did", "not", "but", "we", "they", "you",
     "your", "our", "their", "his", "her", "there", "here", "case", "court",
 }
+
+HEDGING_WORDS = {"maybe", "perhaps", "might", "possibly", "i think", "i guess", "probably"}
+ASSERTIVE_WORDS = {"submit", "contend", "assert", "maintain", "demonstrates", "shows", "establishes"}
+STRUCTURE_MARKERS = {"first", "second", "therefore", "because", "hence", "thus", "however", "finally"}
+
+
+def clamp_score(value, minimum=0, maximum=10):
+    return max(minimum, min(maximum, value))
 
 
 def normalize_text(text: Optional[str]) -> str:
@@ -130,6 +147,57 @@ def retrieve_case_evidence(selected_case, argument, history, limit=4):
     return top_chunks
 
 
+def build_reasoning_breakdown(argument, retrieved_evidence):
+    normalized_argument = normalize_text(argument)
+    argument_tokens = tokenize(argument)
+    token_count = len(argument_tokens)
+
+    top_match_count = max((item.get("match_count", 0) for item in retrieved_evidence), default=0)
+    precedent_hits = sum(1 for item in retrieved_evidence if item.get("chunk_type") == "precedents" and item.get("match_count", 0) > 0)
+    has_citation_style = bool(re.search(r"\bv\.?\b|\barticle\b|\bsection\b|\bipc\b", normalized_argument))
+
+    logic_relevance = clamp_score(4 + top_match_count)
+    logic_precedent = clamp_score(5 + precedent_hits + (1 if has_citation_style else 0))
+    logic_consistency = clamp_score(3 + top_match_count)
+
+    sentence_count = max(1, len([segment for segment in re.split(r"[.?!]", argument or "") if segment.strip()]))
+    structure_hits = sum(1 for marker in STRUCTURE_MARKERS if marker in normalized_argument)
+    clarity_structure = clamp_score(4 + structure_hits + (1 if sentence_count >= 2 else 0))
+    clarity_directness = clamp_score(7 if 25 <= token_count <= 170 else 5)
+
+    hedge_hits = sum(1 for word in HEDGING_WORDS if word in normalized_argument)
+    exclamation_overuse = (argument or "").count("!") >= 3
+    all_caps_ratio = 0
+    alpha_chars = [ch for ch in (argument or "") if ch.isalpha()]
+    if alpha_chars:
+        all_caps_ratio = sum(1 for ch in alpha_chars if ch.isupper()) / len(alpha_chars)
+
+    confidence_tone = clamp_score(7 - hedge_hits)
+    confidence_composure = clamp_score(7 - (2 if exclamation_overuse else 0) - (2 if all_caps_ratio > 0.35 else 0))
+    assertive_hits = sum(1 for word in ASSERTIVE_WORDS if word in normalized_argument)
+    confidence_assertiveness = clamp_score(5 + assertive_hits)
+
+    return {
+        "rubric": SCORING_RUBRIC,
+        "diagnostics": {
+            "logic": {
+                "case_relevance": logic_relevance,
+                "precedent_use": logic_precedent,
+                "factual_consistency": logic_consistency,
+            },
+            "clarity": {
+                "structure": clarity_structure,
+                "directness": clarity_directness,
+            },
+            "confidence": {
+                "tone": confidence_tone,
+                "composure": confidence_composure,
+                "assertiveness": confidence_assertiveness,
+            },
+        },
+    }
+
+
 def build_judge_response(*, feedback, logic_score, clarity_score, confidence_score, interrupt, evidence=None, reasoning_breakdown=None):
     overall_score = round((logic_score + clarity_score + confidence_score) / 3, 1)
     return {
@@ -140,7 +208,7 @@ def build_judge_response(*, feedback, logic_score, clarity_score, confidence_sco
         "confidence_score": confidence_score,
         "interrupt": interrupt,
         "evidence": evidence or [],
-        "reasoning_breakdown": reasoning_breakdown or SCORING_RUBRIC,
+        "reasoning_breakdown": reasoning_breakdown or {"rubric": SCORING_RUBRIC, "diagnostics": {}},
     }
 
 def evaluate_argument(role, argument, history, selected_case=None):
@@ -157,10 +225,17 @@ def evaluate_argument(role, argument, history, selected_case=None):
         ])
 
     retrieved_evidence = retrieve_case_evidence(selected_case, argument, history)
+    rubric_breakdown = build_reasoning_breakdown(argument, retrieved_evidence)
     evidence_str = "\n".join([
         f"- [{item['match_count']} matches] {item['label']} ({item['chunk_type']}): {item['text']}"
         for item in retrieved_evidence
     ]) if retrieved_evidence else "No case evidence matched strongly enough."
+
+    rubric_str = "\n".join([
+        f"- LOGIC: {SCORING_RUBRIC['logic']['definition']} (criteria: {', '.join(SCORING_RUBRIC['logic']['criteria'])})",
+        f"- CLARITY: {SCORING_RUBRIC['clarity']['definition']} (criteria: {', '.join(SCORING_RUBRIC['clarity']['criteria'])})",
+        f"- CONFIDENCE: {SCORING_RUBRIC['confidence']['definition']} (criteria: {', '.join(SCORING_RUBRIC['confidence']['criteria'])})",
+    ])
 
     case_context = "No case selected."
     if selected_case:
@@ -179,6 +254,9 @@ PREVIOUS ARGUMENTS:
 
 RETRIEVED CASE EVIDENCE:
 {evidence_str}
+
+RUBRIC YOU MUST APPLY:
+{rubric_str}
 
 YOUR TASK:
 1. Evaluate this argument on:
@@ -220,6 +298,9 @@ INTERRUPT: [YES or NO]
         logic_score = int(logic_match.group(1)) if logic_match else 5
         clarity_score = int(clarity_match.group(1)) if clarity_match else 5
         confidence_score = int(confidence_match.group(1)) if confidence_match else 5
+        logic_score = clamp_score(logic_score)
+        clarity_score = clamp_score(clarity_score)
+        confidence_score = clamp_score(confidence_score)
         interrupt = interrupt_match.group(1).upper() == "YES" if interrupt_match else False
 
         return build_judge_response(
@@ -229,6 +310,7 @@ INTERRUPT: [YES or NO]
             confidence_score=confidence_score,
             interrupt=interrupt,
             evidence=retrieved_evidence,
+            reasoning_breakdown=rubric_breakdown,
         )
         
     except Exception as e:
@@ -240,4 +322,5 @@ INTERRUPT: [YES or NO]
             confidence_score=0,
             interrupt=True,
             evidence=retrieved_evidence,
+            reasoning_breakdown=rubric_breakdown,
         )
