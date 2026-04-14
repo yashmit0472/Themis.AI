@@ -2,6 +2,35 @@ import { useGameStore } from '../../store/gameStore';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import './Verdict.css';
 
+function toTitle(text) {
+  return String(text || '')
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+function RubricDiagnostics({ title, accentClass, breakdown }) {
+  const diagnostics = breakdown?.diagnostics;
+  if (!diagnostics || Object.keys(diagnostics).length === 0) return null;
+
+  return (
+    <div className={`rubric-side-card ${accentClass}`}>
+      <div className="rubric-side-title">{title}</div>
+      {Object.entries(diagnostics).map(([dimension, criteria]) => (
+        <div key={dimension} className="rubric-dimension-group">
+          <div className="rubric-dimension-name">{toTitle(dimension)}</div>
+          {Object.entries(criteria || {}).map(([criterion, value]) => (
+            <div key={`${dimension}-${criterion}`} className="rubric-criterion-row">
+              <span>{toTitle(criterion)}</span>
+              <span>{value}/10</span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Verdict() {
   const { verdict, scores, petitionerName, respondentName, resetGame, selectedCase, theme, toggleTheme } = useGameStore();
 
@@ -99,6 +128,24 @@ export default function Verdict() {
           <div className="reasoning-text">"{verdict.reasoning}"</div>
           <div className="reasoning-margin">Margin of victory: <strong>{verdict.margin} points</strong></div>
         </div>
+
+        {(scores.petitioner.reasoning_breakdown || scores.respondent.reasoning_breakdown) && (
+          <div className="verdict-rubric-wrap">
+            <div className="reasoning-label" style={{ marginBottom: 8 }}>RUBRIC DIAGNOSTICS</div>
+            <div className="verdict-rubric-grid">
+              <RubricDiagnostics
+                title={petitionerName}
+                accentClass="rubric-petitioner"
+                breakdown={scores.petitioner.reasoning_breakdown}
+              />
+              <RubricDiagnostics
+                title={respondentName}
+                accentClass="rubric-respondent"
+                breakdown={scores.respondent.reasoning_breakdown}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Analytics Radar Chart */}
         <div style={{ width: '100%', height: 360, background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: 24, padding: 20 }}>

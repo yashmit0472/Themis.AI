@@ -16,8 +16,8 @@ export const TURN_STATES = {
 };
 
 const initialScores = {
-  petitioner: { logic: 0, clarity: 0, confidence: 0, total: 0, history: [] },
-  respondent: { logic: 0, clarity: 0, confidence: 0, total: 0, history: [] },
+  petitioner: { logic: 0, clarity: 0, confidence: 0, total: 0, evidence: [], reasoning_breakdown: null, history: [] },
+  respondent: { logic: 0, clarity: 0, confidence: 0, total: 0, evidence: [], reasoning_breakdown: null, history: [] },
 };
 
 const initialRetryCountBySpeaker = {

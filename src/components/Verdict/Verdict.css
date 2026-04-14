@@ -317,6 +317,73 @@
 
 .reasoning-margin strong { color: #c9a84c; }
 
+.verdict-rubric-wrap {
+  background: rgba(201,168,76,0.05);
+  border: 1px solid rgba(201,168,76,0.15);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.verdict-rubric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.rubric-side-card {
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 12px;
+  background: rgba(10, 14, 24, 0.55);
+}
+
+.rubric-petitioner {
+  border-left: 3px solid #4a90d9;
+}
+
+.rubric-respondent {
+  border-left: 3px solid #e05c5c;
+}
+
+.rubric-side-title {
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #e8d8a0;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.rubric-dimension-group {
+  margin-bottom: 8px;
+}
+
+.rubric-dimension-group:last-child {
+  margin-bottom: 0;
+}
+
+.rubric-dimension-name {
+  font-size: 0.68rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #c9a84c;
+  margin-bottom: 4px;
+}
+
+.rubric-criterion-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.76rem;
+  color: #d7cfb1;
+  padding: 2px 0;
+}
+
+@media (max-width: 820px) {
+  .verdict-rubric-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Actions */
 .verdict-actions {
   display: flex;
