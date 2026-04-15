@@ -69,6 +69,21 @@
   font-weight: 600;
 }
 
+.topbar-mode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(201,168,76,0.12);
+  border: 1px solid rgba(201,168,76,0.22);
+  color: #e8c97a;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+}
+
 .topbar-right {
   display: flex;
   align-items: center;
@@ -209,6 +224,11 @@
   background: rgba(6,9,15,0.4);
   border: 1px solid rgba(255,255,255,0.02);
   opacity: 0.6;
+}
+
+.counsel-bot-active {
+  background: rgba(201,168,76,0.08);
+  border-color: rgba(201,168,76,0.22);
 }
 
 .counsel-petitioner.counsel-active {

@@ -27,12 +27,19 @@ const initialRetryCountBySpeaker = {
 
 export const useGameStore = create((set, get) => ({
   phase: GAME_PHASES.LOBBY,
+  matchMode: '1V1',
   turnState: TURN_STATES.WAITING,
   currentSpeaker: 'petitioner',
   retryCountBySpeaker: initialRetryCountBySpeaker,
   selectedCase: null,
   petitionerName: 'Counsel A',
   respondentName: 'Counsel B',
+  sessionProfile: {
+    displayName: '',
+    email: '',
+    roomCode: '',
+    accessMode: 'guest',
+  },
   scores: initialScores,
   transcript: [],
   judgeMessage: null,
@@ -50,26 +57,47 @@ export const useGameStore = create((set, get) => ({
 
   toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
   setPhase: (phase) => set({ phase }),
+  setMatchMode: (matchMode) => set({ matchMode }),
   setSelectedCase: (c) => set({ selectedCase: c }),
   setPetitionerName: (name) => set({ petitionerName: name }),
   setRespondentName: (name) => set({ respondentName: name }),
+  setSessionProfile: (profile) => set((state) => ({
+    sessionProfile: {
+      ...state.sessionProfile,
+      ...profile,
+    },
+  })),
 
-  startGame: () => set({
-    phase: GAME_PHASES.COURTROOM,
-    turnState: TURN_STATES.PETITIONER,
-    currentSpeaker: 'petitioner',
-    retryCountBySpeaker: initialRetryCountBySpeaker,
-    scores: initialScores,
-    transcript: [],
-    judgeMessage: null,
-    judgeInterruptContext: null,
-    isJudgeSpeaking: false,
-    timer: 60,
-    timerActive: true,
-    roundNumber: 1,
-    objectionActive: null,
-    verdict: null,
-    showVerdict: false,
+  startGame: (config = {}) => set((state) => {
+    const matchMode = config.matchMode || state.matchMode;
+    const petitionerName = config.petitionerName || state.petitionerName;
+    const respondentName = config.respondentName || state.respondentName;
+
+    return {
+      phase: GAME_PHASES.COURTROOM,
+      matchMode,
+      turnState: TURN_STATES.PETITIONER,
+      currentSpeaker: 'petitioner',
+      retryCountBySpeaker: initialRetryCountBySpeaker,
+      selectedCase: config.selectedCase || state.selectedCase,
+      petitionerName,
+      respondentName,
+      sessionProfile: {
+        ...state.sessionProfile,
+        ...(config.sessionProfile || {}),
+      },
+      scores: initialScores,
+      transcript: [],
+      judgeMessage: null,
+      judgeInterruptContext: null,
+      isJudgeSpeaking: false,
+      timer: 60,
+      timerActive: true,
+      roundNumber: 1,
+      objectionActive: null,
+      verdict: null,
+      showVerdict: false,
+    };
   }),
 
   setTurn: (turn) => set({
@@ -194,10 +222,17 @@ export const useGameStore = create((set, get) => ({
 
   resetGame: () => set({
     phase: GAME_PHASES.LOBBY,
+    matchMode: '1V1',
     turnState: TURN_STATES.WAITING,
     currentSpeaker: 'petitioner',
     retryCountBySpeaker: initialRetryCountBySpeaker,
     selectedCase: null,
+    sessionProfile: {
+      displayName: '',
+      email: '',
+      roomCode: '',
+      accessMode: 'guest',
+    },
     scores: initialScores,
     transcript: [],
     judgeMessage: null,

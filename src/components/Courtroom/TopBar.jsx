@@ -1,7 +1,12 @@
 import { useGameStore } from '../../store/gameStore';
 
-export default function TopBar({ roundNumber, maxRounds, caseName, caseCategory }) {
+export default function TopBar({ roundNumber, maxRounds, caseName, caseCategory, matchMode }) {
   const { resetGame, theme, toggleTheme } = useGameStore();
+  const modeLabel = matchMode === '1VBOT'
+    ? '1vBot'
+    : matchMode === 'ONLINE'
+    ? 'Online Room'
+    : '1v1';
 
   return (
     <div className="topbar">
@@ -16,6 +21,7 @@ export default function TopBar({ roundNumber, maxRounds, caseName, caseCategory 
         <div className="topbar-case-name">{caseName}</div>
       </div>
       <div className="topbar-right" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="topbar-mode">{modeLabel}</div>
         <div className="topbar-round">
           <span className="round-label">ROUND</span>
           <span className="round-num">{roundNumber}</span>

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 
-export default function CounselPanel({ side, name, isActive, isDisabled, scores, onSubmit, onObjection, canObjection }) {
+export default function CounselPanel({ side, name, isActive, isDisabled, isBotControlled = false, scores, onSubmit, onObjection, canObjection }) {
   const [text, setText] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -106,7 +106,7 @@ export default function CounselPanel({ side, name, isActive, isDisabled, scores,
 
   return (
     <div
-      className={`counsel-panel ${isActive ? 'counsel-active glow-border' : 'counsel-inactive'} ${isPetitioner ? 'counsel-petitioner' : 'counsel-respondent'}`}
+      className={`counsel-panel ${isActive ? 'counsel-active glow-border' : 'counsel-inactive'} ${isBotControlled ? 'counsel-bot-active' : ''} ${isPetitioner ? 'counsel-petitioner' : 'counsel-respondent'}`}
       style={{ '--accent': color, '--glow': glowColor }}
     >
       {/* Active indicator bar */}
@@ -141,6 +141,17 @@ export default function CounselPanel({ side, name, isActive, isDisabled, scores,
       {/* Input area */}
       <div className={`counsel-input-wrap ${isActive ? 'input-active' : 'input-disabled'}`}>
         {isActive ? (
+          isBotControlled ? (
+            <div className="counsel-waiting">
+              <div className="waiting-dots">
+                <span /><span /><span />
+              </div>
+              <div className="waiting-text">
+                AI counsel is drafting a response...
+              </div>
+              <div className="word-count" style={{ color: color }}>Bot mode is active for this side.</div>
+            </div>
+          ) : (
           <>
             <div className="input-prompt">Your argument to the Bench:</div>
             <textarea
@@ -198,6 +209,7 @@ export default function CounselPanel({ side, name, isActive, isDisabled, scores,
               {submitted ? '✓ Submitted' : '📣 Submit to Court'}
             </button>
           </>
+          )
         ) : (
           <div className="counsel-waiting">
             <div className="waiting-dots">

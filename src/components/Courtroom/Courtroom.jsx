@@ -13,6 +13,7 @@ import './Courtroom.css';
 
 export default function Courtroom() {
   const {
+    matchMode,
     turnState, timer, timerActive, tickTimer, setTurn,
     petitionerName, respondentName, selectedCase,
     scores, roundNumber, maxRounds, nextRound, setObjection, clearObjection, objectionActive,
@@ -100,6 +101,7 @@ export default function Courtroom() {
         maxRounds={maxRounds}
         caseName={selectedCase?.title}
         caseCategory={selectedCase?.category}
+        matchMode={matchMode}
       />
 
       {/* Timer */}
@@ -127,6 +129,7 @@ export default function Courtroom() {
           name={petitionerName}
           isActive={isPetitionerTurn}
           isDisabled={!isPetitionerTurn || isProcessing}
+          isBotControlled={false}
           scores={scores.petitioner}
           onSubmit={(text) => handleSubmit(text, 'petitioner')}
           onObjection={() => handleObjection('petitioner')}
@@ -139,9 +142,10 @@ export default function Courtroom() {
         {/* Respondent */}
         <CounselPanel
           side="respondent"
-          name={respondentName}
+          name={matchMode === '1VBOT' ? `${respondentName} (BOT)` : respondentName}
           isActive={isRespondentTurn}
           isDisabled={!isRespondentTurn || isProcessing}
+          isBotControlled={matchMode === '1VBOT'}
           scores={scores.respondent}
           onSubmit={(text) => handleSubmit(text, 'respondent')}
           onObjection={() => handleObjection('respondent')}

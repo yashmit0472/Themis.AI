@@ -42,8 +42,8 @@ export default function TranscriptFeed() {
             <div className="entry-content">
               <div className="entry-label">
                 {entry.type === 'judge' ? 'HON\'BLE BENCH' :
-                 entry.type === 'petitioner' ? 'PETITIONER' :
-                 entry.type === 'respondent' ? 'RESPONDENT' : 'OBJECTION'}
+                 entry.type === 'petitioner' ? (entry.bot ? 'PETITIONER (BOT)' : 'PETITIONER') :
+                 entry.type === 'respondent' ? (entry.bot ? 'RESPONDENT (BOT)' : 'RESPONDENT') : 'OBJECTION'}
                 <span className="entry-time">{entry.timestamp}</span>
               </div>
               <div className="entry-text">{highlightLegalTerms(entry.text)}</div>
