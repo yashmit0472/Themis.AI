@@ -1,12 +1,17 @@
-from google import genai
+import json
 import os
 from dotenv import load_dotenv
 import re
+from urllib import error, request
 from typing import Optional
 
 load_dotenv()
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
+OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1/chat/completions")
+OPENROUTER_HTTP_REFERER = os.getenv("OPENROUTER_HTTP_REFERER", "http://localhost")
+OPENROUTER_APP_TITLE = os.getenv("OPENROUTER_APP_TITLE", "Themis.AI")
 
 JUDGE_RESPONSE_FIELDS = (
     "feedback",
@@ -211,6 +216,60 @@ def build_judge_response(*, feedback, logic_score, clarity_score, confidence_sco
         "reasoning_breakdown": reasoning_breakdown or {"rubric": SCORING_RUBRIC, "diagnostics": {}},
     }
 
+
+def call_openrouter(prompt):
+    if not OPENROUTER_API_KEY:
+        raise RuntimeError("OPENROUTER_API_KEY is not configured.")
+
+    payload = {
+        "model": OPENROUTER_MODEL,
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a strict Supreme Court judge in a moot court. Return exactly the requested format with no extra text.",
+            },
+            {
+                "role": "user",
+                "content": prompt,
+            },
+        ],
+        "temperature": 0.2,
+        "max_tokens": 500,
+    }
+
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": OPENROUTER_HTTP_REFERER,
+        "X-Title": OPENROUTER_APP_TITLE,
+    }
+
+    request_data = json.dumps(payload).encode("utf-8")
+    http_request = request.Request(OPENROUTER_BASE_URL, data=request_data, headers=headers, method="POST")
+
+    try:
+        with request.urlopen(http_request, timeout=30) as response:
+            response_payload = json.loads(response.read().decode("utf-8"))
+    except error.HTTPError as exc:
+        error_body = exc.read().decode("utf-8", errors="replace") if exc.fp else str(exc)
+        raise RuntimeError(f"OpenRouter request failed with status {exc.code}: {error_body}") from exc
+    except error.URLError as exc:
+        raise RuntimeError(f"OpenRouter request failed: {exc.reason}") from exc
+
+    choices = response_payload.get("choices") or []
+    if not choices:
+        raise RuntimeError("OpenRouter response did not include any choices.")
+
+    message = choices[0].get("message") or {}
+    content = message.get("content")
+    if isinstance(content, list):
+        content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
+
+    if not isinstance(content, str) or not content.strip():
+        raise RuntimeError("OpenRouter response did not include readable content.")
+
+    return content.strip()
+
 def evaluate_argument(role, argument, history, selected_case=None):
     """
     Evaluates a legal argument in a moot court setting.
@@ -280,13 +339,8 @@ INTERRUPT: [YES or NO]
 """
     
     try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt
-        )
-        
-        text = response.text.strip()
-        
+        text = call_openrouter(prompt)
+
         # Parse response with regex
         feedback_match = re.search(r'FEEDBACK:\s*(.+?)(?=\n[A-Z]+:|$)', text, re.DOTALL)
         logic_match = re.search(r'LOGIC:\s*(\d+)', text)
